@@ -1,7 +1,27 @@
 import Foundation
 import SlackBot
+import Vapor
 
-let slackBot = SlackBot(withToken: "<your slack bot token>", environment: .custom("showingOff"))
+#if os(Linux)
+let workingDirectory = "./"
+#else
+let workingDirectory: String = {
+	let parent = #file.characters.split(separator: "/").map(String.init).dropLast().joined(separator: "/")
+	let path = "/\(parent)/../"
+	return path
+}()
+#endif
+
+let configDirectory = workingDirectory + "Config/"
+let config = try Settings.Config(prioritized: [.commandLine, .directory(root: configDirectory + "secrets"), .directory(root: configDirectory)])
+
+guard let botToken = config["bot-config", "token"]?.string else {
+	throw SlackBot.SlackBotError.missingConfig
+}
+
+// MARK: - The actual bot code
+
+let slackBot = SlackBot(withToken: botToken, environment: .development)
 
 slackBot.onStateChange = { slackBot in
 	print("slackBot \(slackBot.botName ?? "") changed state to \(slackBot.state)")
